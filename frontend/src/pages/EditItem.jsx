@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { Camera, MapPin, Tag, AlignLeft, Info } from 'lucide-react';
+import { Camera, MapPin, Tag, AlignLeft, Info, ArrowLeft } from 'lucide-react';
 
 const categories = [
     'Electronics', 'Clothing', 'Home', 'Books', 'Toys', 'Sports', 'Other'
 ];
 const conditions = ['New', 'Like New', 'Used'];
 
-const Sell = () => {
+const EditItem = () => {
+    const { id } = useParams();
     const navigate = useNavigate();
 
     const [formData, setFormData] = useState({
@@ -22,8 +23,32 @@ const Sell = () => {
     });
 
     const [images, setImages] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        const fetchItem = async () => {
+            try {
+                const { data } = await axios.get(`/api/items/${id}`);
+                setFormData({
+                    title: data.title,
+                    price: data.price.toString(),
+                    negotiable: data.negotiable,
+                    condition: data.condition,
+                    category: data.category,
+                    location: data.location,
+                    description: data.description
+                });
+                setImages(data.images);
+                setLoading(false);
+            } catch (err) {
+                setError(err.response?.data?.message || 'Failed to fetch item details');
+                setLoading(false);
+            }
+        };
+        fetchItem();
+    }, [id]);
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -57,7 +82,7 @@ const Sell = () => {
             return;
         }
 
-        setLoading(true);
+        setSubmitting(true);
         try {
             const payload = {
                 ...formData,
@@ -65,20 +90,35 @@ const Sell = () => {
                 images
             };
 
-            const { data } = await axios.post('/api/items', payload);
-            navigate(`/items/${data._id}`);
+            await axios.put(`/api/items/${id}`, payload);
+            navigate(`/items/${id}`);
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to list item');
+            setError(err.response?.data?.message || 'Failed to update item');
         } finally {
-            setLoading(false);
+            setSubmitting(false);
         }
     };
 
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+                <div style={{ width: '40px', height: '40px', border: '4px solid var(--clr-bg-tertiary)', borderTop: '4px solid var(--clr-brand-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+            </div>
+        );
+    }
+
     return (
         <div className="animate-fade-in container" style={{ padding: '2rem 0', maxWidth: '800px' }}>
-            <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem', textAlign: 'center' }}>Sell an Item</h1>
+            <button
+                onClick={() => navigate(-1)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none', color: 'var(--clr-text-secondary)', cursor: 'pointer', marginBottom: '1.5rem', fontSize: '1rem', padding: 0 }}
+            >
+                <ArrowLeft size={18} /> Back
+            </button>
+
+            <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem', textAlign: 'center' }}>Edit Listing</h1>
             <p style={{ color: 'var(--clr-text-secondary)', textAlign: 'center', marginBottom: '3rem' }}>
-                List your item in minutes and reach thousands of buyers.
+                Update your item details to reach more buyers.
             </p>
 
             {error && (
@@ -115,7 +155,6 @@ const Sell = () => {
                             <input type="file" multiple accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
                         </label>
                     </div>
-                    <small style={{ color: 'var(--clr-text-tertiary)' }}>Main photo will be the first one. You can upload multiple.</small>
                 </section>
 
                 <hr style={{ border: 'none', borderTop: '1px solid var(--clr-border)', margin: '2rem 0' }} />
@@ -132,7 +171,6 @@ const Sell = () => {
                             type="text"
                             name="title"
                             className="form-input"
-                            placeholder="e.g. iPhone 13 Pro Max - 128GB"
                             value={formData.title}
                             onChange={handleInputChange}
                             required
@@ -172,7 +210,6 @@ const Sell = () => {
                                 type="number"
                                 name="price"
                                 className="form-input"
-                                placeholder="0"
                                 min="0"
                                 value={formData.price}
                                 onChange={handleInputChange}
@@ -198,7 +235,6 @@ const Sell = () => {
                                 type="text"
                                 name="location"
                                 className="form-input"
-                                placeholder="City / District"
                                 value={formData.location}
                                 onChange={handleInputChange}
                                 required
@@ -219,7 +255,6 @@ const Sell = () => {
                         <textarea
                             name="description"
                             className="form-input"
-                            placeholder="Describe the item, including any flaws, exact specifications, and why you are selling it."
                             rows="6"
                             style={{ resize: 'vertical' }}
                             value={formData.description}
@@ -227,34 +262,45 @@ const Sell = () => {
                             required
                             maxLength="1000"
                         ></textarea>
-                        <div style={{ textAlign: 'right', fontSize: '0.75rem', color: 'var(--clr-text-tertiary)', marginTop: '0.25rem' }}>
-                            {formData.description.length} / 1000
-                        </div>
                     </div>
                 </section>
 
-                <button
-                    type="submit"
-                    className="btn btn-primary"
-                    style={{ width: '100%', padding: '1rem', fontSize: '1.125rem' }}
-                    disabled={loading}
-                >
-                    {loading ? 'Posting...' : 'Post Listing'}
-                </button>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                    <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ flex: 1, padding: '1rem' }}
+                        onClick={() => navigate(-1)}
+                        disabled={submitting}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        className="btn btn-primary"
+                        style={{ flex: 2, padding: '1rem' }}
+                        disabled={submitting}
+                    >
+                        {submitting ? 'Updating...' : 'Update Listing'}
+                    </button>
+                </div>
 
             </form>
 
             <style>{`
-        .image-upload-label:hover {
-          border-color: var(--clr-brand-primary) !important;
-          color: var(--clr-brand-primary) !important;
-        }
-        .text-brand {
-          color: var(--clr-brand-primary);
-        }
-      `}</style>
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+                .image-upload-label:hover {
+                    border-color: var(--clr-brand-primary) !important;
+                    color: var(--clr-brand-primary) !important;
+                }
+                .text-brand {
+                    color: var(--clr-brand-primary);
+                }
+            `}</style>
         </div>
     );
 };
 
-export default Sell;
+export default EditItem;

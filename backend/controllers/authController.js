@@ -74,13 +74,16 @@ const getUserProfile = async (req, res, next) => {
         const user = await User.findById(req.user._id).populate('savedItems');
 
         if (user) {
+            // Filter out any null items (deleted items) from savedItems
+            const activeSavedItems = (user.savedItems || []).filter(item => item !== null);
+
             res.json({
                 _id: user._id,
                 name: user.name,
                 email: user.email,
                 role: user.role,
                 isVerified: user.isVerified,
-                savedItems: user.savedItems,
+                savedItems: activeSavedItems,
                 orderHistory: user.orderHistory,
             });
         } else {

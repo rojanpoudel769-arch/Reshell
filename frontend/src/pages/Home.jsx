@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import ItemCard from '../components/items/ItemCard';
 import { Search } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const Home = () => {
     const [items, setItems] = useState([]);
+    const [recommendations, setRecommendations] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [recLoading, setRecLoading] = useState(false);
     const [error, setError] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const { user } = useAuth();
+    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchItems = async () => {
@@ -19,8 +26,34 @@ const Home = () => {
                 setLoading(false);
             }
         };
+
+        const fetchRecommendations = async () => {
+            if (user) {
+                setRecLoading(true);
+                try {
+                    const { data } = await axios.get('/api/items/recommendations');
+                    setRecommendations(data);
+                } catch (err) {
+                    console.error('Failed to fetch recommendations:', err);
+                } finally {
+                    setRecLoading(false);
+                }
+            }
+        };
+
         fetchItems();
-    }, []);
+        fetchRecommendations();
+    }, [user]);
+
+    const handleDeleteItem = async (itemId) => {
+        try {
+            await axios.delete(`/api/items/${itemId}`);
+            setItems(prev => prev.filter(item => item._id !== itemId));
+        } catch (err) {
+            console.error('Error deleting item:', err);
+            alert(err.response?.data?.message || 'Failed to delete item');
+        }
+    };
 
     return (
         <div className="animate-fade-in">
@@ -46,15 +79,24 @@ const Home = () => {
                     </p>
 
                     <div style={{ display: 'flex', maxWidth: '600px', margin: '0 auto', backgroundColor: 'white', borderRadius: 'var(--radius-full)', padding: '0.5rem', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', paddingLeft: '1rem', color: 'var(--clr-text-secondary)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', paddingLeft: '1rem', color: 'var(--clr-text-secondary, black)' }}>
                             <Search size={20} />
                         </div>
                         <input
                             type="text"
                             placeholder="What are you looking for?"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && navigate(`/explore?keyword=${searchQuery}`)}
                             style={{ flex: 1, border: 'none', background: 'transparent', padding: '0.75rem 1rem', fontSize: '1rem', outline: 'none', color: 'var(--clr-text-primary)' }}
                         />
-                        <button className="btn btn-primary" style={{ padding: '0.75rem 1.5rem', borderRadius: 'var(--radius-full)' }}>Search</button>
+                        <button
+                            className="btn btn-primary"
+                            style={{ padding: '0.75rem 1.5rem', borderRadius: 'var(--radius-full)' }}
+                            onClick={() => navigate(`/explore?keyword=${searchQuery}`)}
+                        >
+                            Search
+                        </button>
                     </div>
                 </div>
 
@@ -63,14 +105,31 @@ const Home = () => {
                 <div style={{ position: 'absolute', bottom: '-20%', right: '-5%', width: '300px', height: '300px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', filter: 'blur(30px)', zIndex: 0 }}></div>
             </section>
 
-            {/* Featured Items Section */}
-            <section>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2rem' }}>
-                    <div>
-                        <h2 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Fresh Finds</h2>
-                        <p style={{ color: 'var(--clr-text-secondary)', fontSize: '1.125rem' }}>The latest additions to our marketplace</p>
+            {/* Recommendations Section */}
+            {user && recommendations.length > 0 && (
+                <section style={{ marginBottom: '4rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2rem' }}>
+                        <div>
+                            <h2 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Recommended for You</h2>
+                            <p style={{ color: 'var(--clr-text-secondary)', fontSize: '1.125rem' }}>Products we think you'll love based on your interests</p>
+                        </div>
                     </div>
-                    <button className="btn btn-secondary" style={{ borderRadius: 'var(--radius-full)', fontSize: '0.875rem' }}>View All</button>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2rem' }}>
+                        {recommendations.map((item, idx) => (
+                            <div key={item._id} style={{ animation: `fadeIn 0.5s ease-out ${idx * 0.1}s both` }}>
+                                <ItemCard item={item} showActions={false} />
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {/* Fresh Finds Section */}
+            <section style={{ marginBottom: '4rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                    <h2 style={{ margin: 0 }}>Fresh Finds</h2>
+                    <Link to="/explore" className="btn btn-secondary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}>View All</Link>
                 </div>
 
                 {loading ? (
@@ -86,7 +145,7 @@ const Home = () => {
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2rem' }}>
                         {items.map(item => (
-                            <ItemCard key={item._id} item={item} />
+                            <ItemCard key={item._id} item={item} onDelete={handleDeleteItem} showActions={false} />
                         ))}
                     </div>
                 )}

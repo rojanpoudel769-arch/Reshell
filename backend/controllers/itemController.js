@@ -153,39 +153,108 @@ const deleteItem = async (req, res, next) => {
 // @access  Private
 const getRecommendations = async (req, res, next) => {
     try {
-        // Basic collaborative/content filtering based on user's saved items or roles
-        // We'll find categories of items the user has saved
-        const user = await req.user.populate('savedItems');
+        // Based on categories from user's saved items
+        const user = await User.findById(req.user._id).populate('savedItems');
         let categories = [];
 
         if (user.savedItems && user.savedItems.length > 0) {
             categories = user.savedItems.map(item => item.category);
         }
 
-        let filter = {};
-        if (categories.length > 0) {
-            filter = { category: { $in: categories } };
+        // Weight categories by frequency
+        const categoryWeights = {};
+        categories.forEach(cat => {
+            categoryWeights[cat] = (categoryWeights[cat] || 0) + 1;
+        });
+
+        // Sort categories by weight
+        const sortedCategories = Object.keys(categoryWeights).sort((a, b) => categoryWeights[b] - categoryWeights[a]);
+
+        let recommendations = [];
+        if (sortedCategories.length > 0) {
+            recommendations = await Item.find({
+                category: { $in: sortedCategories },
+                seller: { $ne: req.user._id },
+                _id: { $nin: user.savedItems.map(item => item._id) }
+            })
+                .limit(10)
+                .sort({ createdAt: -1 })
+                .populate('seller', 'name');
         }
 
-        // Exclude user's own items
-        filter.seller = { $ne: req.user._id };
-
-        const recommendations = await Item.find(filter)
-            .limit(8)
-            .sort({ createdAt: -1 })
-            .populate('seller', 'name');
-
-        // If not enough recommendations, pad with newest items
+        // Pad with newest items if needed
         if (recommendations.length < 4) {
-            const extraItems = await Item.find({ seller: { $ne: req.user._id } })
-                .limit(8 - recommendations.length)
+            const extraItems = await Item.find({
+                seller: { $ne: req.user._id },
+                _id: { $nin: [...user.savedItems.map(item => item._id), ...recommendations.map(r => r._id)] }
+            })
+                .limit(10 - recommendations.length)
                 .sort({ createdAt: -1 })
                 .populate('seller', 'name');
 
-            recommendations.push(...extraItems.filter(item => !recommendations.some(r => r._id.equals(item._id))));
+            recommendations = [...recommendations, ...extraItems];
         }
 
-        res.json(recommendations);
+        res.json(recommendations.slice(0, 8));
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Get related items (same category)
+// @route   GET /api/items/:id/related
+// @access  Public
+const getRelatedItems = async (req, res, next) => {
+    try {
+        const item = await Item.findById(req.params.id);
+        if (!item) {
+            res.status(404).json({ message: 'Item not found' });
+            return;
+        }
+
+        const relatedItems = await Item.find({
+            category: item.category,
+            _id: { $ne: item._id }
+        })
+            .limit(4)
+            .sort({ createdAt: -1 })
+            .populate('seller', 'name');
+
+        res.json(relatedItems);
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Toggle save an item (add/remove from user's saved items)
+// @route   POST /api/items/:id/save
+// @access  Private
+const toggleSaveItem = async (req, res, next) => {
+    try {
+        const item = await Item.findById(req.params.id);
+        if (!item) {
+            res.status(404).json({ message: 'Item not found' });
+            return;
+        }
+
+        const user = await User.findById(req.user._id);
+
+        // Check if item is already saved
+        const isSaved = user.savedItems.some(id => id.toString() === item._id.toString());
+
+        if (isSaved) {
+            // Remove from savedItems
+            user.savedItems = user.savedItems.filter(id => id.toString() !== item._id.toString());
+        } else {
+            // Add to savedItems
+            user.savedItems.push(item._id);
+        }
+
+        await user.save();
+        res.json({
+            message: isSaved ? 'Item removed from saved' : 'Item saved successfully',
+            isSaved: !isSaved
+        });
     } catch (error) {
         next(error);
     }
@@ -198,4 +267,6 @@ module.exports = {
     updateItem,
     deleteItem,
     getRecommendations,
+    getRelatedItems,
+    toggleSaveItem,
 };

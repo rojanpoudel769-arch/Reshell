@@ -9,7 +9,6 @@ const Profile = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
 
-    const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('saved'); // 'saved', 'listings', 'settings'
     const [myItems, setMyItems] = useState([]);
@@ -20,26 +19,34 @@ const Profile = () => {
             return;
         }
 
-        const fetchProfileData = async () => {
+        const fetchUserItems = async () => {
             try {
-                const { data } = await axios.get('/api/users/profile');
-                setProfile(data);
-
-                // Fetch user's own listings explicitly if needed, or get them from another endpoint
-                // For simplicity, we'll fetch items and filter locally
+                // Fetch user's own listings explicitly
                 const res = await axios.get('/api/items');
-                const userListings = res.data.items.filter(item => item.seller._id === user._id || item.seller === user._id);
+                const userListings = res.data.items.filter(item => {
+                    const sellerId = item.seller._id || item.seller;
+                    return sellerId.toString() === user._id.toString();
+                });
                 setMyItems(userListings);
-
             } catch (err) {
-                console.error(err);
+                console.error('Error fetching user items:', err);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchProfileData();
+        fetchUserItems();
     }, [user, navigate]);
+
+    const handleDeleteItem = async (itemId) => {
+        try {
+            await axios.delete(`/api/items/${itemId}`);
+            setMyItems(prev => prev.filter(item => item._id !== itemId));
+        } catch (err) {
+            console.error('Error deleting item:', err);
+            alert(err.response?.data?.message || 'Failed to delete item');
+        }
+    };
 
     if (loading) return <div className="container" style={{ padding: '4rem 0', textAlign: 'center' }}>Loading profile...</div>;
 
@@ -50,10 +57,10 @@ const Profile = () => {
             <div className="glass-panel" style={{ padding: '2rem', height: 'fit-content' }}>
                 <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
                     <div style={{ width: '6rem', height: '6rem', borderRadius: '50%', backgroundColor: 'var(--clr-brand-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', fontWeight: 700, margin: '0 auto 1rem' }}>
-                        {profile?.name?.charAt(0).toUpperCase()}
+                        {user?.name?.charAt(0).toUpperCase()}
                     </div>
-                    <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{profile?.name}</h2>
-                    <p style={{ color: 'var(--clr-text-secondary)', fontSize: '0.875rem' }}>{profile?.email}</p>
+                    <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{user?.name}</h2>
+                    <p style={{ color: 'var(--clr-text-secondary)', fontSize: '0.875rem' }}>{user?.email}</p>
                 </div>
 
                 <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -97,17 +104,17 @@ const Profile = () => {
                 {activeTab === 'saved' && (
                     <div>
                         <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <Heart size={24} className="text-brand" style={{ color: 'var(--clr-brand-primary)' }} /> Saved Items ({profile?.savedItems?.length || 0})
+                            <Heart size={24} className="text-brand" style={{ color: 'var(--clr-brand-primary)' }} /> Saved Items ({user?.savedItems?.length || 0})
                         </h2>
-                        {profile?.savedItems?.length === 0 ? (
+                        {user?.savedItems?.length === 0 ? (
                             <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', color: 'var(--clr-text-secondary)' }}>
                                 <p>You haven't saved any items yet.</p>
                                 <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={() => navigate('/explore')}>Discover Items</button>
                             </div>
                         ) : (
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
-                                {profile?.savedItems?.map(item => (
-                                    <ItemCard key={item._id} item={item} />
+                                {user?.savedItems?.map(item => (
+                                    <ItemCard key={item._id || item} item={item._id ? item : { _id: item }} />
                                 ))}
                             </div>
                         )}
@@ -130,7 +137,7 @@ const Profile = () => {
                         ) : (
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
                                 {myItems.map(item => (
-                                    <ItemCard key={item._id} item={item} />
+                                    <ItemCard key={item._id} item={item} onDelete={handleDeleteItem} />
                                 ))}
                             </div>
                         )}
@@ -146,11 +153,11 @@ const Profile = () => {
                         <form style={{ maxWidth: '500px' }}>
                             <div className="form-group">
                                 <label className="form-label">Full Name</label>
-                                <input type="text" className="form-input" defaultValue={profile?.name} />
+                                <input type="text" className="form-input" defaultValue={user?.name} />
                             </div>
                             <div className="form-group">
                                 <label className="form-label">Email Address</label>
-                                <input type="email" className="form-input" defaultValue={profile?.email} disabled />
+                                <input type="email" className="form-input" defaultValue={user?.email} disabled />
                                 <small style={{ color: 'var(--clr-text-tertiary)', marginTop: '0.25rem', display: 'block' }}>Email address cannot be changed</small>
                             </div>
 

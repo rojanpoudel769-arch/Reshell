@@ -1,10 +1,50 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Heart, MapPin } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Heart, MapPin, Trash2, Pencil } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
-const ItemCard = ({ item }) => {
+const ItemCard = ({ item, onDelete, showActions = true }) => {
+    const { user, toggleSave } = useAuth();
+    const navigate = useNavigate();
+
+    const isSaved = user?.savedItems?.some(savedItem => {
+        if (!savedItem) return false;
+        const id = savedItem._id || savedItem;
+        return id.toString() === item._id.toString();
+    });
+
+    const isOwner = user && (user._id === (item.seller?._id || item.seller)) && showActions;
+
+    const handleToggleSave = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!user) {
+            navigate('/login');
+            return;
+        }
+        await toggleSave(item);
+    };
+
+    const handleDelete = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (window.confirm('Are you sure you want to delete this item?')) {
+            onDelete(item._id);
+        }
+    };
+
+    const handleEdit = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        navigate(`/edit-item/${item._id}`);
+    };
+
     return (
-        <div className="item-card glass-panel" style={{ overflow: 'hidden', padding: 0, transition: 'var(--transition-normal)', display: 'flex', flexDirection: 'column', height: '100%', border: '1px solid var(--clr-border)', cursor: 'pointer' }}>
+        <div
+            className="item-card glass-panel"
+            style={{ overflow: 'hidden', padding: 0, transition: 'var(--transition-normal)', display: 'flex', flexDirection: 'column', height: '100%', border: '1px solid var(--clr-border)', cursor: 'pointer' }}
+            onClick={() => navigate(`/items/${item._id}`)}
+        >
 
             {/* Image Section */}
             <div style={{ position: 'relative', width: '100%', paddingTop: '75%', backgroundColor: 'var(--clr-bg-tertiary)', overflow: 'hidden' }}>
@@ -14,16 +54,47 @@ const ItemCard = ({ item }) => {
                     style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s ease' }}
                     className="item-image"
                 />
-                <button
-                    className="favorite-btn"
-                    style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', backgroundColor: 'rgba(255,255,255,0.8)', padding: '0.5rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--clr-text-secondary)', backdropFilter: 'blur(4px)', transition: 'all 0.2s' }}
-                    onClick={(e) => {
-                        e.preventDefault();
-                        // Toggle favorite logic
-                    }}
-                >
-                    <Heart size={18} />
-                </button>
+                <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', display: 'flex', gap: '0.5rem' }}>
+                    {isOwner && (
+                        <>
+                            <button
+                                className="edit-btn"
+                                style={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', padding: '0.5rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--clr-text-primary)', backdropFilter: 'blur(4px)', transition: 'all 0.2s', zIndex: 2, border: 'none' }}
+                                onClick={handleEdit}
+                                title="Edit Item"
+                            >
+                                <Pencil size={18} />
+                            </button>
+                            <button
+                                className="delete-btn"
+                                style={{ backgroundColor: 'rgba(239, 68, 68, 0.9)', padding: '0.5rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', backdropFilter: 'blur(4px)', transition: 'all 0.2s', zIndex: 2, border: 'none' }}
+                                onClick={handleDelete}
+                                title="Delete Item"
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                        </>
+                    )}
+                    <button
+                        className="favorite-btn"
+                        style={{
+                            backgroundColor: isSaved ? 'var(--clr-brand-primary)' : 'rgba(255,255,255,0.8)',
+                            padding: '0.5rem',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: isSaved ? 'white' : 'var(--clr-text-secondary)',
+                            backdropFilter: 'blur(4px)',
+                            transition: 'all 0.2s',
+                            zIndex: 2,
+                            border: 'none'
+                        }}
+                        onClick={handleToggleSave}
+                    >
+                        <Heart size={18} fill={isSaved ? "currentColor" : "none"} />
+                    </button>
+                </div>
                 <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', padding: '0.25rem 0.5rem', borderRadius: 'var(--radius-sm)', fontSize: '0.75rem', fontWeight: 600, backdropFilter: 'blur(4px)' }}>
                     {item.category}
                 </div>
@@ -44,7 +115,7 @@ const ItemCard = ({ item }) => {
                 <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                     <div>
                         <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--clr-brand-primary)' }}>
-                            ${item.price.toFixed(2)}
+                            Rs. {item.price.toLocaleString()}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--clr-text-tertiary)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
                             <MapPin size={12} />
@@ -65,6 +136,15 @@ const ItemCard = ({ item }) => {
         }
         .favorite-btn:hover {
           color: var(--clr-brand-accent) !important;
+          transform: scale(1.1);
+        }
+        .delete-btn:hover {
+          background-color: var(--clr-error) !important;
+          transform: scale(1.1);
+        }
+        .edit-btn:hover {
+          background-color: var(--clr-brand-primary) !important;
+          color: white !important;
           transform: scale(1.1);
         }
       `}</style>

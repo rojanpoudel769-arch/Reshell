@@ -12,6 +12,8 @@ import Profile from './pages/Profile';
 import Categories from './pages/Categories';
 import About from './pages/About';
 import Sell from './pages/Sell';
+import EditItem from './pages/EditItem';
+import NotFound from './pages/NotFound';
 
 function App() {
   return (
@@ -31,6 +33,9 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/items/:id" element={<ItemDetail />} />
+                <Route path="/edit-item/:id" element={<EditItem />} />
+                <Route path="/not-found" element={<NotFound />} />
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </div>
           </main>

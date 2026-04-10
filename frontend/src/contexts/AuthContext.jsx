@@ -13,31 +13,37 @@ export const AuthProvider = ({ children }) => {
 
     // Setup Axios interceptor
     useEffect(() => {
-        if (token) {
-            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-            localStorage.setItem('token', token);
+        const loadUser = async () => {
+            if (token) {
+                axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                localStorage.setItem('token', token);
 
-            try {
-                const decoded = jwtDecode(token);
-                // We might want to fetch full profile here, but for now we'll just set the token info
-                setUser({ _id: decoded.id, ...decoded });
-            } catch (err) {
-                setToken(null);
+                try {
+                    // Fetch full profile to get savedItems etc.
+                    const { data } = await axios.get('/api/users/profile');
+                    setUser(data);
+                } catch (err) {
+                    console.error('Error loading user profile:', err);
+                    // If profiling fetching fails (e.g. invalid/expired token), clear it
+                    setToken(null);
+                    localStorage.removeItem('token');
+                    setUser(null);
+                }
+            } else {
+                delete axios.defaults.headers.common['Authorization'];
                 localStorage.removeItem('token');
+                setUser(null);
             }
-        } else {
-            delete axios.defaults.headers.common['Authorization'];
-            localStorage.removeItem('token');
-            setUser(null);
-        }
-        setLoading(false);
+            setLoading(false);
+        };
+        loadUser();
     }, [token]);
 
     const login = async (email, password) => {
         try {
             const { data } = await axios.post('/api/users/login', { email, password });
             setToken(data.token);
-            setUser(data);
+            // The reload will happen via token change effect, which fetches full profile
             return true;
         } catch (error) {
             throw error.response?.data?.message || 'Login failed';
@@ -48,7 +54,7 @@ export const AuthProvider = ({ children }) => {
         try {
             const { data } = await axios.post('/api/users/register', { name, email, password });
             setToken(data.token);
-            setUser(data);
+            // The reload will happen via token change effect
             return true;
         } catch (error) {
             throw error.response?.data?.message || 'Registration failed';
@@ -59,12 +65,47 @@ export const AuthProvider = ({ children }) => {
         setToken(null);
     };
 
+    const toggleSave = async (item) => {
+        if (!user) return false;
+        const itemId = item._id || item;
+        try {
+            await axios.post(`/api/items/${itemId}/save`);
+
+            // Update local user state
+            setUser(prev => {
+                if (!prev) return prev;
+                const isSaved = prev.savedItems?.some(itemObj => {
+                    if (!itemObj) return false;
+                    const id = itemObj._id || itemObj;
+                    return id.toString() === itemId.toString();
+                });
+
+                let newSavedItems;
+                if (isSaved) {
+                    newSavedItems = prev.savedItems.filter(itemObj => {
+                        if (!itemObj) return false;
+                        const id = itemObj._id || itemObj;
+                        return id.toString() !== itemId.toString();
+                    });
+                } else {
+                    newSavedItems = [...(prev.savedItems || []), item];
+                }
+                return { ...prev, savedItems: newSavedItems };
+            });
+            return true;
+        } catch (error) {
+            console.error('Error toggling save:', error);
+            return false;
+        }
+    };
+
     const value = {
         user,
         token,
         login,
         register,
         logout,
+        toggleSave,
         loading
     };
 

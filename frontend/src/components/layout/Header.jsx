@@ -1,15 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Search, ShoppingBag, User, LogOut, Menu } from 'lucide-react';
+import { Search, ShoppingBag, User, LogOut, Menu, Heart } from 'lucide-react';
 
 const Header = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const [searchQuery, setSearchQuery] = useState('');
 
     const handleLogout = () => {
         logout();
         navigate('/');
+    };
+
+    const handleSearch = (e) => {
+        if (e.key === 'Enter') {
+            navigate(`/explore?keyword=${searchQuery}`);
+            setSearchQuery('');
+        }
     };
 
     return (
@@ -34,19 +42,40 @@ const Header = () => {
                 {/* Search & Actions */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
 
-                    <div style={{ position: 'relative', display: 'none' }} className="search-desktop">
+                    <div className="search-desktop" style={{ display: 'none', alignItems: 'center', backgroundColor: 'var(--clr-bg-secondary)', borderRadius: 'var(--radius-full)', padding: '0 0.5rem 0 1rem', border: '1px solid var(--clr-border)', width: '320px', transition: 'all var(--transition-fast)' }}>
+                        <Search
+                            size={18}
+                            style={{ color: 'var(--clr-text-tertiary)', cursor: 'pointer' }}
+                            onClick={() => {
+                                if (searchQuery.trim()) {
+                                    navigate(`/explore?keyword=${searchQuery}`);
+                                    setSearchQuery('');
+                                }
+                            }}
+                        />
                         <input
                             type="text"
                             placeholder="Search items..."
-                            className="form-input"
-                            style={{ paddingLeft: '2.5rem', width: '250px', borderRadius: 'var(--radius-full)' }}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={handleSearch}
+                            style={{ flex: 1, border: 'none', background: 'transparent', padding: '0.6rem 0.75rem', fontSize: '0.875rem', outline: 'none', color: 'var(--clr-text-primary)' }}
                         />
-                        <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--clr-text-tertiary)' }} />
                     </div>
 
                     {user ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
                             <Link to="/sell" className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>Sell Item</Link>
+
+                            <Link to="/profile" style={{ color: 'var(--clr-text-secondary)', position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                <Heart size={24} />
+                                {user.savedItems?.length > 0 && (
+                                    <span style={{ position: 'absolute', top: '-6px', right: '-8px', backgroundColor: 'var(--clr-brand-primary)', color: 'white', fontSize: '0.625rem', fontWeight: 700, padding: '2px 5px', borderRadius: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
+                                        {user.savedItems.length}
+                                    </span>
+                                )}
+                            </Link>
+
                             <Link to="/profile" style={{ color: 'var(--clr-text-secondary)' }}><User size={24} /></Link>
                             <button onClick={handleLogout} style={{ color: 'var(--clr-text-secondary)' }}><LogOut size={24} /></button>
                         </div>

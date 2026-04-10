@@ -7,6 +7,8 @@ const {
     updateItem,
     deleteItem,
     getRecommendations,
+    getRelatedItems,
+    toggleSaveItem,
 } = require('../controllers/itemController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -64,6 +66,44 @@ router.route('/')
  *         description: List of recommended items
  */
 router.route('/recommendations').get(protect, getRecommendations);
+
+/**
+ * @swagger
+ * /api/items/{id}/save:
+ *   post:
+ *     summary: Toggle save an item
+ *     tags: [Items]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Action successful
+ */
+router.route('/:id/save').post(protect, toggleSaveItem);
+
+/**
+ * @swagger
+ * /api/items/{id}/related:
+ *   get:
+ *     summary: Get related items in the same category
+ *     tags: [Items]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of related items
+ */
+router.route('/:id/related').get(getRelatedItems);
 
 /**
  * @swagger

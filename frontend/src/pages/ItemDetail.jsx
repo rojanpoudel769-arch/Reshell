@@ -3,28 +3,49 @@ import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { MapPin, Clock, ShieldCheck, Mail, Heart, ChevronLeft } from 'lucide-react';
+import ItemCard from '../components/items/ItemCard';
 
 const ItemDetail = () => {
     const { id } = useParams();
     const [item, setItem] = useState(null);
+    const [relatedItems, setRelatedItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
     const { user } = useAuth();
 
     useEffect(() => {
-        const fetchItem = async () => {
+        const fetchItemData = async () => {
+            setLoading(true);
             try {
-                const { data } = await axios.get(`/api/items/${id}`);
-                setItem(data);
+                const [itemRes, relatedRes] = await Promise.all([
+                    axios.get(`/api/items/${id}`),
+                    axios.get(`/api/items/${id}/related`)
+                ]);
+                setItem(itemRes.data);
+                setRelatedItems(relatedRes.data);
             } catch (err) {
                 setError('Item not found or an error occurred.');
             } finally {
                 setLoading(false);
             }
         };
-        fetchItem();
+        fetchItemData();
     }, [id]);
+
+    const handleDeleteItem = async (itemId) => {
+        try {
+            await axios.delete(`/api/items/${itemId}`);
+            setRelatedItems(prev => prev.filter(item => item._id !== itemId));
+            if (item?._id === itemId) {
+                setItem(null);
+                setError('Item has been deleted.');
+            }
+        } catch (err) {
+            console.error('Error deleting item:', err);
+            alert(err.response?.data?.message || 'Failed to delete item');
+        }
+    };
 
     if (loading) {
         return <div className="container" style={{ paddingTop: '4rem', textAlign: 'center' }}>Loading details...</div>;
@@ -89,7 +110,7 @@ const ItemDetail = () => {
 
                     <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>{item.title}</h1>
                     <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--clr-brand-primary)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        ${item.price.toFixed(2)}
+                        Rs. {item.price.toLocaleString()}
                         {item.negotiable && <span style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--clr-text-secondary)', backgroundColor: 'var(--clr-bg-tertiary)', padding: '0.25rem 0.5rem', borderRadius: 'var(--radius-sm)' }}>Negotiable</span>}
                     </div>
 
@@ -148,6 +169,18 @@ const ItemDetail = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Related Items Section */}
+            {relatedItems.length > 0 && (
+                <section style={{ marginTop: '5rem', marginBottom: '3rem' }}>
+                    <h2 style={{ fontSize: '1.75rem', marginBottom: '2rem' }}>You May Also Like</h2>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '2rem' }}>
+                        {relatedItems.map(relItem => (
+                            <ItemCard key={relItem._id} item={relItem} onDelete={handleDeleteItem} showActions={false} />
+                        ))}
+                    </div>
+                </section>
+            )}
 
             <style>{`
         @media(min-width: 1024px) {

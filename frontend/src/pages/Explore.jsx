@@ -17,7 +17,7 @@ const Explore = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    // Filters
+    // Filters (initialized from URL)
     const [keyword, setKeyword] = useState(searchParams.get('keyword') || '');
     const [category, setCategory] = useState(searchParams.get('category') || 'All');
     const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') || '');
@@ -25,18 +25,47 @@ const Explore = () => {
 
     const [showFilters, setShowFilters] = useState(false);
 
+    // Sync state with URL whenever location.search changes
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        setKeyword(params.get('keyword') || '');
+        setCategory(params.get('category') || 'All');
+        setMinPrice(params.get('minPrice') || '');
+        setMaxPrice(params.get('maxPrice') || '');
+    }, [location.search]);
+
     useEffect(() => {
         const fetchItems = async () => {
             setLoading(true);
             try {
+                const params = new URLSearchParams(location.search);
+                const currentKeyword = params.get('keyword') || '';
+                const currentCategory = params.get('category') || 'All';
+                const currentMin = params.get('minPrice') || '';
+                const currentMax = params.get('maxPrice') || '';
+
                 let url = `/api/items?`;
-                if (keyword) url += `keyword=${keyword}&`;
-                if (category !== 'All') url += `category=${category}&`;
-                if (minPrice) url += `minPrice=${minPrice}&`;
-                if (maxPrice) url += `maxPrice=${maxPrice}&`;
+                if (currentKeyword) url += `keyword=${currentKeyword}&`;
+                if (currentCategory !== 'All') url += `category=${currentCategory}&`;
+                if (currentMin) url += `minPrice=${currentMin}&`;
+                if (currentMax) url += `maxPrice=${currentMax}&`;
 
                 const { data } = await axios.get(url);
                 setItems(data.items);
+
+                // Smart Category Detection:
+                // If we are in "All" and have results, check if they all belong to one category
+                if (currentCategory === 'All' && data.items.length > 0 && currentKeyword) {
+                    const uniqueCategories = [...new Set(data.items.map(item => item.category))];
+                    if (uniqueCategories.length === 1) {
+                        setCategory(uniqueCategories[0]);
+                    }
+                }
+
+                // Redirect to not-found if no items found and a keyword was used
+                if (data.items.length === 0 && currentKeyword && !loading) {
+                    navigate('/not-found');
+                }
             } catch (err) {
                 setError('Failed to fetch items');
             } finally {
@@ -45,6 +74,16 @@ const Explore = () => {
         };
         fetchItems();
     }, [location.search]);
+
+    const handleDeleteItem = async (itemId) => {
+        try {
+            await axios.delete(`/api/items/${itemId}`);
+            setItems(prev => prev.filter(item => item._id !== itemId));
+        } catch (err) {
+            console.error('Error deleting item:', err);
+            alert(err.response?.data?.message || 'Failed to delete item');
+        }
+    };
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -174,7 +213,7 @@ const Explore = () => {
                     ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2rem' }}>
                             {items.map(item => (
-                                <ItemCard key={item._id} item={item} />
+                                <ItemCard key={item._id} item={item} onDelete={handleDeleteItem} showActions={false} />
                             ))}
                         </div>
                     )}
