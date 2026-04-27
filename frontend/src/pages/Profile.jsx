@@ -2,16 +2,23 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import ItemCard from '../components/items/ItemCard';
-import { User, Heart, ShoppingBag, Settings, LogOut } from 'lucide-react';
+import { User, Heart, ShoppingBag, Settings, LogOut, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
 
-    const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('saved'); // 'saved', 'listings', 'settings'
     const [myItems, setMyItems] = useState([]);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [name, setName] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmNewPassword, setConfirmNewPassword] = useState('');
+    const [updateSuccess, setUpdateSuccess] = useState(false);
+    const [updateError, setUpdateError] = useState('');
 
     useEffect(() => {
         if (!user) {
@@ -21,13 +28,9 @@ const Profile = () => {
 
         const fetchUserItems = async () => {
             try {
-                // Fetch user's own listings explicitly
-                const res = await axios.get('/api/items');
-                const userListings = res.data.items.filter(item => {
-                    const sellerId = item.seller._id || item.seller;
-                    return sellerId.toString() === user._id.toString();
-                });
-                setMyItems(userListings);
+                // Fetch only this user's listings via seller query param
+                const res = await axios.get(`/api/items?seller=${user._id}`);
+                setMyItems(res.data.items || []);
             } catch (err) {
                 console.error('Error fetching user items:', err);
             } finally {
@@ -36,6 +39,9 @@ const Profile = () => {
         };
 
         fetchUserItems();
+        if (user) {
+            setName(user.name);
+        }
     }, [user, navigate]);
 
     const handleDeleteItem = async (itemId) => {
@@ -45,6 +51,40 @@ const Profile = () => {
         } catch (err) {
             console.error('Error deleting item:', err);
             alert(err.response?.data?.message || 'Failed to delete item');
+        }
+    };
+
+    const handleUpdateProfile = async (e) => {
+        e.preventDefault();
+        setUpdateError('');
+        setUpdateSuccess(false);
+
+        if (newPassword && newPassword !== confirmNewPassword) {
+            setUpdateError('Passwords do not match');
+            return;
+        }
+
+        try {
+            const token = JSON.parse(localStorage.getItem('userInfo'))?.token;
+            const config = { headers: { Authorization: `Bearer ${token}` } };
+            
+            const payload = { name };
+            if (newPassword) payload.password = newPassword;
+
+            const res = await axios.put('/api/users/profile', payload, config);
+            
+            // Update local storage with new info (except token which stays the same or gets refreshed)
+            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+            localStorage.setItem('userInfo', JSON.stringify({ ...userInfo, name: res.data.name }));
+            
+            setUpdateSuccess(true);
+            setNewPassword('');
+            setConfirmNewPassword('');
+            
+            // Reload page to reflect name changes across the app
+            setTimeout(() => window.location.reload(), 1500);
+        } catch (err) {
+            setUpdateError(err.response?.data?.message || 'Failed to update profile');
         }
     };
 
@@ -150,10 +190,26 @@ const Profile = () => {
                             <Settings size={24} style={{ color: 'var(--clr-brand-primary)' }} /> Account Settings
                         </h2>
 
-                        <form style={{ maxWidth: '500px' }}>
+                        {updateSuccess && (
+                            <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--clr-success)', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem' }}>
+                                Profile updated successfully!
+                            </div>
+                        )}
+                        {updateError && (
+                            <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--clr-error)', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem' }}>
+                                {updateError}
+                            </div>
+                        )}
+
+                        <form style={{ maxWidth: '500px' }} onSubmit={handleUpdateProfile}>
                             <div className="form-group">
                                 <label className="form-label">Full Name</label>
-                                <input type="text" className="form-input" defaultValue={user?.name} />
+                                <input 
+                                    type="text" 
+                                    className="form-input" 
+                                    value={name} 
+                                    onChange={(e) => setName(e.target.value)} 
+                                />
                             </div>
                             <div className="form-group">
                                 <label className="form-label">Email Address</label>
@@ -166,11 +222,52 @@ const Profile = () => {
                             <h3 style={{ marginBottom: '1rem', fontSize: '1.25rem' }}>Change Password</h3>
                             <div className="form-group">
                                 <label className="form-label">New Password</label>
-                                <input type="password" className="form-input" placeholder="Leave blank to keep same" />
+                                <div style={{ position: 'relative' }}>
+                                    <input 
+                                        type={showNewPassword ? "text" : "password"} 
+                                        className="form-input" 
+                                        value={newPassword}
+                                        onChange={(e) => setNewPassword(e.target.value)}
+                                        placeholder="Leave blank to keep same"
+                                        style={{ paddingRight: '2.5rem' }} 
+                                        minLength={6}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowNewPassword(!showNewPassword)}
+                                        style={{
+                                            position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)',
+                                            background: 'none', border: 'none', cursor: 'pointer', color: 'var(--clr-text-tertiary)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                        }}
+                                    >
+                                        {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
                             </div>
                             <div className="form-group">
                                 <label className="form-label">Confirm New Password</label>
-                                <input type="password" className="form-input" />
+                                <div style={{ position: 'relative' }}>
+                                    <input 
+                                        type={showConfirmNewPassword ? "text" : "password"} 
+                                        className="form-input"
+                                        value={confirmNewPassword}
+                                        onChange={(e) => setConfirmNewPassword(e.target.value)}
+                                        style={{ paddingRight: '2.5rem' }} 
+                                        minLength={6}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
+                                        style={{
+                                            position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)',
+                                            background: 'none', border: 'none', cursor: 'pointer', color: 'var(--clr-text-tertiary)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                        }}
+                                    >
+                                        {showConfirmNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
                             </div>
 
                             <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem' }}>Save Changes</button>

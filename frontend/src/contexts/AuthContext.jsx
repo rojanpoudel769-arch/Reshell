@@ -53,9 +53,8 @@ export const AuthProvider = ({ children }) => {
     const register = async (name, email, password) => {
         try {
             const { data } = await axios.post('/api/users/register', { name, email, password });
-            setToken(data.token);
-            // The reload will happen via token change effect
-            return true;
+            // We no longer automatically log in after registration. The user must verify their email.
+            return data.message;
         } catch (error) {
             throw error.response?.data?.message || 'Registration failed';
         }

@@ -1,5 +1,7 @@
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
+const crypto = require('crypto');
+const sendEmail = require('../utils/sendEmail');
 
 // @desc    Register a new user
 // @route   POST /api/users/register
@@ -14,24 +16,38 @@ const registerUser = async (req, res, next) => {
             return res.status(400).json({ message: 'User already exists' });
         }
 
+        const verificationToken = crypto.randomBytes(20).toString('hex');
+
         const user = await User.create({
             name,
             email,
             password,
-            // For local testing, we'll mark as verified or mock it.
-            // In production, we would send an email.
-            isVerified: true
+            isVerified: false,
+            verificationToken,
+            verificationTokenExpire: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
         });
 
         if (user) {
-            res.status(201).json({
-                _id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                isVerified: user.isVerified,
-                token: generateToken(user._id),
-            });
+            const verificationUrl = `http://localhost:5173/verify-email/${verificationToken}`;
+            const message = `Please verify your email by clicking the following link: \n\n ${verificationUrl}`;
+
+            try {
+                await sendEmail({
+                    email: user.email,
+                    subject: 'Email Verification',
+                    message,
+                });
+
+                res.status(201).json({
+                    message: 'Registration successful. Please check your email to verify your account.',
+                });
+            } catch (error) {
+                user.verificationToken = undefined;
+                user.verificationTokenExpire = undefined;
+                await user.save({ validateBeforeSave: false });
+
+                return next(new Error('Email could not be sent'));
+            }
         } else {
             res.status(400).json({ message: 'Invalid user data' });
         }
@@ -49,7 +65,15 @@ const loginUser = async (req, res, next) => {
 
         const user = await User.findOne({ email }).select('+password');
 
-        if (user && (await user.matchPassword(password))) {
+        if (!user) {
+            return res.status(401).json({ message: 'Email is not registered' });
+        }
+
+        if (!user.isVerified) {
+            return res.status(403).json({ message: 'Please verify your email to log in' });
+        }
+
+        if (await user.matchPassword(password)) {
             res.json({
                 _id: user._id,
                 name: user.name,
@@ -59,7 +83,7 @@ const loginUser = async (req, res, next) => {
                 token: generateToken(user._id),
             });
         } else {
-            res.status(401).json({ message: 'Invalid email or password' });
+            res.status(401).json({ message: 'Invalid password' });
         }
     } catch (error) {
         next(error);
@@ -124,9 +148,37 @@ const updateUserProfile = async (req, res, next) => {
     }
 };
 
+// @desc    Verify email
+// @route   GET /api/users/verify-email/:token
+// @access  Public
+const verifyEmail = async (req, res, next) => {
+    try {
+        const verificationToken = req.params.token;
+
+        const user = await User.findOne({
+            verificationToken,
+            verificationTokenExpire: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({ message: 'Invalid or expired verification token' });
+        }
+
+        user.isVerified = true;
+        user.verificationToken = undefined;
+        user.verificationTokenExpire = undefined;
+        await user.save();
+
+        res.json({ message: 'Email verified successfully' });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
+    verifyEmail,
     getUserProfile,
     updateUserProfile,
 };

@@ -1,4 +1,5 @@
 const Item = require('../models/Item');
+const User = require('../models/User');
 
 // @desc    Fetch all items with search, filter, and pagination
 // @route   GET /api/items
@@ -21,13 +22,16 @@ const getItems = async (req, res, next) => {
         // Filter by category
         const category = req.query.category ? { category: req.query.category } : {};
 
+        // Filter by seller
+        const seller = req.query.seller ? { seller: req.query.seller } : {};
+
         // Filter by price range
         const minPrice = req.query.minPrice ? Number(req.query.minPrice) : 0;
         const maxPrice = req.query.maxPrice ? Number(req.query.maxPrice) : Number.MAX_SAFE_INTEGER;
         const priceFilter = { price: { $gte: minPrice, $lte: maxPrice } };
 
         // Combine filters
-        const filter = { ...keyword, ...category, ...priceFilter };
+        const filter = { ...keyword, ...category, ...seller, ...priceFilter };
 
         const count = await Item.countDocuments(filter);
         const items = await Item.find(filter)

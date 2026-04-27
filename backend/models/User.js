@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
     password: {
         type: String,
         required: [true, 'Please add a password'],
-        minlength: 6,
+        minlength: 5,
         select: false
     },
     role: {
@@ -30,6 +30,8 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    verificationToken: String,
+    verificationTokenExpire: Date,
     savedItems: [{
         type: mongoose.Schema.ObjectId,
         ref: 'Item'
@@ -45,7 +47,7 @@ const userSchema = new mongoose.Schema({
 // Encrypt password using bcrypt
 userSchema.pre('save', async function (next) {
     if (!this.isModified('password')) {
-        next();
+        return next();
     }
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);

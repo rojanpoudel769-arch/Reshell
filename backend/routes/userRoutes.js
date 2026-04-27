@@ -3,6 +3,7 @@ const router = express.Router();
 const {
     registerUser,
     loginUser,
+    verifyEmail,
     getUserProfile,
     updateUserProfile,
 } = require('../controllers/authController');
@@ -49,6 +50,7 @@ const { protect } = require('../middleware/authMiddleware');
  *         description: User already exists or invalid data
  */
 router.post('/register', registerUser);
+router.get('/verify-email/:token', verifyEmail);
 
 /**
  * @swagger

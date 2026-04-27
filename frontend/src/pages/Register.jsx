@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Eye, EyeOff } from 'lucide-react';
 
 const Register = () => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -25,8 +27,9 @@ const Register = () => {
         setLoading(true);
 
         try {
-            await register(name, email, password);
-            navigate('/');
+            const message = await register(name, email, password);
+            alert(message);
+            navigate('/login');
         } catch (err) {
             setError(err);
         } finally {
@@ -80,30 +83,58 @@ const Register = () => {
 
                     <div className="form-group">
                         <label className="form-label" htmlFor="password">Password</label>
-                        <input
-                            id="password"
-                            type="password"
-                            className="form-input"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            placeholder="••••••••"
-                            minLength={6}
-                        />
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                id="password"
+                                type={showPassword ? "text" : "password"}
+                                className="form-input"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                placeholder="••••••••"
+                                minLength={5}
+                                style={{ paddingRight: '2.5rem' }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                style={{
+                                    position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)',
+                                    background: 'none', border: 'none', cursor: 'pointer', color: 'var(--clr-text-tertiary)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                }}
+                            >
+                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                        </div>
                     </div>
 
                     <div className="form-group">
                         <label className="form-label" htmlFor="confirmPassword">Confirm Password</label>
-                        <input
-                            id="confirmPassword"
-                            type="password"
-                            className="form-input"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            required
-                            placeholder="••••••••"
-                            minLength={6}
-                        />
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                id="confirmPassword"
+                                type={showConfirmPassword ? "text" : "password"}
+                                className="form-input"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                required
+                                placeholder="••••••••"
+                                minLength={5}
+                                style={{ paddingRight: '2.5rem' }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                style={{
+                                    position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)',
+                                    background: 'none', border: 'none', cursor: 'pointer', color: 'var(--clr-text-tertiary)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                }}
+                            >
+                                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                        </div>
                     </div>
 
                     <button

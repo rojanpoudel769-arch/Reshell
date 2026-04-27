@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Search, ShoppingBag, User, LogOut, Menu, Heart } from 'lucide-react';
+import { Search, ShoppingBag, User, LogOut, Menu, Heart, MessageSquare } from 'lucide-react';
 
 const Header = () => {
     const { user, logout } = useAuth();
@@ -66,6 +66,10 @@ const Header = () => {
                     {user ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
                             <Link to="/sell" className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>Sell Item</Link>
+
+                            <Link to="/messages" style={{ color: 'var(--clr-text-secondary)', display: 'flex', alignItems: 'center' }} title="Messages">
+                                <MessageSquare size={24} />
+                            </Link>
 
                             <Link to="/profile" style={{ color: 'var(--clr-text-secondary)', position: 'relative', display: 'flex', alignItems: 'center' }}>
                                 <Heart size={24} />

@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { MapPin, Clock, ShieldCheck, Mail, Heart, ChevronLeft } from 'lucide-react';
 import ItemCard from '../components/items/ItemCard';
+import ContactSellerModal from '../components/ContactSellerModal';
 
 const ItemDetail = () => {
     const { id } = useParams();
@@ -11,6 +12,7 @@ const ItemDetail = () => {
     const [relatedItems, setRelatedItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [showContactModal, setShowContactModal] = useState(false);
 
     const { user } = useAuth();
 
@@ -158,13 +160,27 @@ const ItemDetail = () => {
                         <p style={{ fontWeight: 600, fontSize: '1.125rem', marginBottom: '1rem' }}>{item.seller?.name}</p>
 
                         {user ? (
-                            <button className="btn btn-primary" style={{ width: '100%', display: 'flex', gap: '0.5rem' }}>
-                                <Mail size={20} /> Contact Seller
+                            <button
+                                id="contact-seller-btn"
+                                className="btn btn-primary"
+                                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                                onClick={() => setShowContactModal(true)}
+                                disabled={item.seller?._id?.toString() === user._id?.toString()}
+                            >
+                                <Mail size={20} />
+                                {item.seller?._id?.toString() === user._id?.toString() ? 'Your Listing' : 'Contact Seller'}
                             </button>
                         ) : (
                             <Link to="/login" className="btn btn-secondary" style={{ width: '100%', display: 'block', textAlign: 'center' }}>
                                 Log in to contact seller
                             </Link>
+                        )}
+
+                        {showContactModal && (
+                            <ContactSellerModal
+                                item={item}
+                                onClose={() => setShowContactModal(false)}
+                            />
                         )}
                     </div>
                 </div>
