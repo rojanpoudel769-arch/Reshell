@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { LogIn, Eye, EyeOff } from 'lucide-react';
 
@@ -12,6 +12,7 @@ const Login = () => {
 
     const { login } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -19,8 +20,14 @@ const Login = () => {
         setLoading(true);
 
         try {
-            await login(email, password);
-            navigate('/');
+            const loggedInUser = await login(email, password);
+            // Redirect: admin → /admin, user → intended page or home
+            if (loggedInUser?.role === 'admin') {
+                navigate('/admin');
+            } else {
+                const from = location.state?.from?.pathname || '/';
+                navigate(from);
+            }
         } catch (err) {
             setError(err);
         } finally {

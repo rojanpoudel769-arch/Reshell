@@ -56,6 +56,10 @@ const itemSchema = new mongoose.Schema({
         type: String,
         enum: ['Available', 'Sold', 'Reserved'],
         default: 'Available'
+    },
+    isApproved: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true

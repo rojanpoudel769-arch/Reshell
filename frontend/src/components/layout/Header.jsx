@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Search, ShoppingBag, User, LogOut, Menu, Heart, MessageSquare } from 'lucide-react';
+import { Search, ShoppingBag, User, LogOut, Menu, Heart, MessageSquare, Shield } from 'lucide-react';
 
 const Header = () => {
     const { user, logout } = useAuth();
@@ -37,6 +37,11 @@ const Header = () => {
                     <Link to="/explore" style={{ fontWeight: 500, color: 'var(--clr-text-secondary)' }}>Explore</Link>
                     <Link to="/categories" style={{ fontWeight: 500, color: 'var(--clr-text-secondary)' }}>Categories</Link>
                     <Link to="/about" style={{ fontWeight: 500, color: 'var(--clr-text-secondary)' }}>About</Link>
+                    {user?.role === 'admin' && (
+                        <Link to="/admin" style={{ fontWeight: 600, color: 'var(--clr-brand-primary)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <Shield size={16} /> Admin Panel
+                        </Link>
+                    )}
                 </nav>
 
                 {/* Search & Actions */}
@@ -65,7 +70,13 @@ const Header = () => {
 
                     {user ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-                            <Link to="/sell" className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>Sell Item</Link>
+                            {user.role === 'admin' ? (
+                                <Link to="/admin" className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <Shield size={16} /> Admin Panel
+                                </Link>
+                            ) : (
+                                <Link to="/sell" className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>Sell Item</Link>
+                            )}
 
                             <Link to="/messages" style={{ color: 'var(--clr-text-secondary)', display: 'flex', alignItems: 'center' }} title="Messages">
                                 <MessageSquare size={24} />

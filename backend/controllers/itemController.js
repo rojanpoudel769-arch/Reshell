@@ -22,7 +22,7 @@ const getItems = async (req, res, next) => {
         // Filter by category
         const category = req.query.category ? { category: req.query.category } : {};
 
-        // Filter by seller
+        // Filter by seller — if filtering by a specific seller (profile view), skip approval filter
         const seller = req.query.seller ? { seller: req.query.seller } : {};
 
         // Filter by price range
@@ -30,8 +30,11 @@ const getItems = async (req, res, next) => {
         const maxPrice = req.query.maxPrice ? Number(req.query.maxPrice) : Number.MAX_SAFE_INTEGER;
         const priceFilter = { price: { $gte: minPrice, $lte: maxPrice } };
 
+        // Only show approved items on public explore — bypass if querying by specific seller
+        const approvalFilter = req.query.seller ? {} : { isApproved: true };
+
         // Combine filters
-        const filter = { ...keyword, ...category, ...seller, ...priceFilter };
+        const filter = { ...keyword, ...category, ...seller, ...priceFilter, ...approvalFilter };
 
         const count = await Item.countDocuments(filter);
         const items = await Item.find(filter)
@@ -50,6 +53,7 @@ const getItems = async (req, res, next) => {
         next(error);
     }
 };
+
 
 // @desc    Fetch single item
 // @route   GET /api/items/:id

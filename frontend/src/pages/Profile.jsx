@@ -177,7 +177,21 @@ const Profile = () => {
                         ) : (
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
                                 {myItems.map(item => (
-                                    <ItemCard key={item._id} item={item} onDelete={handleDeleteItem} />
+                                    <div key={item._id} style={{ position: 'relative' }}>
+                                        {!item.isApproved && (
+                                            <div style={{
+                                                position: 'absolute', top: '0.75rem', left: '0.75rem',
+                                                zIndex: 10, backgroundColor: '#f59e0b', color: 'white',
+                                                fontSize: '0.7rem', fontWeight: 700, padding: '3px 10px',
+                                                borderRadius: '999px', letterSpacing: '0.04em',
+                                                boxShadow: '0 2px 6px rgba(245,158,11,0.4)',
+                                                pointerEvents: 'none'
+                                            }}>
+                                                ⏳ Pending Approval
+                                            </div>
+                                        )}
+                                        <ItemCard key={item._id} item={item} onDelete={handleDeleteItem} />
+                                    </div>
                                 ))}
                             </div>
                         )}

@@ -43,8 +43,8 @@ export const AuthProvider = ({ children }) => {
         try {
             const { data } = await axios.post('/api/users/login', { email, password });
             setToken(data.token);
-            // The reload will happen via token change effect, which fetches full profile
-            return true;
+            // Return user data (including role) so caller can redirect appropriately
+            return data;
         } catch (error) {
             throw error.response?.data?.message || 'Login failed';
         }
