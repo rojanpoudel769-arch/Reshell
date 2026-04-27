@@ -7,9 +7,13 @@ const VerifyEmail = () => {
     const { token } = useParams();
     const [status, setStatus] = useState('loading'); // 'loading', 'success', 'error'
     const [message, setMessage] = useState('');
+    const hasFetched = React.useRef(false);
 
     useEffect(() => {
         const verify = async () => {
+            if (hasFetched.current) return;
+            hasFetched.current = true;
+            
             try {
                 const { data } = await axios.get(`/api/users/verify-email/${token}`);
                 setStatus('success');

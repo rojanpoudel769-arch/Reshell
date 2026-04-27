@@ -2,6 +2,7 @@ const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const crypto = require('crypto');
 const sendEmail = require('../utils/sendEmail');
+const { getVerificationEmailTemplate } = require('../utils/emailTemplates');
 
 // @desc    Register a new user
 // @route   POST /api/users/register
@@ -30,12 +31,14 @@ const registerUser = async (req, res, next) => {
         if (user) {
             const verificationUrl = `http://localhost:5173/verify-email/${verificationToken}`;
             const message = `Please verify your email by clicking the following link: \n\n ${verificationUrl}`;
+            const htmlMessage = getVerificationEmailTemplate(verificationUrl);
 
             try {
                 await sendEmail({
                     email: user.email,
-                    subject: 'Email Verification',
+                    subject: 'Verify your Reshell account',
                     message,
+                    html: htmlMessage,
                 });
 
                 res.status(201).json({
