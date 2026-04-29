@@ -12,10 +12,12 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: '*', // Adjust in production
+        origin: process.env.FRONTEND_URL || '*',
         methods: ['GET', 'POST']
     }
 });
+
+app.set('io', io);
 
 // Socket.io Middleware for Auth
 io.use((socket, next) => {
@@ -32,6 +34,10 @@ io.use((socket, next) => {
 
 io.on('connection', (socket) => {
     console.log(`Socket connected: ${socket.id}, User: ${socket.user?.id}`);
+
+    if (socket.user && socket.user.id) {
+        socket.join(socket.user.id);
+    }
 
     socket.on('join_conversation', (conversationId) => {
         socket.join(conversationId);
@@ -55,7 +61,7 @@ module.exports = { app, server, io };
 connectDB();
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: process.env.FRONTEND_URL || '*' }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -70,7 +76,7 @@ const swaggerOptions = {
         },
         servers: [
             {
-                url: `http://localhost:${process.env.PORT || 5000}`,
+                url: process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`,
             },
         ],
     },

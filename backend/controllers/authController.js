@@ -29,7 +29,8 @@ const registerUser = async (req, res, next) => {
         });
 
         if (user) {
-            const verificationUrl = `http://localhost:5173/verify-email/${verificationToken}`;
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+            const verificationUrl = `${frontendUrl}/verify-email/${verificationToken}`;
             const message = `Please verify your email by clicking the following link: \n\n ${verificationUrl}`;
             const htmlMessage = getVerificationEmailTemplate(verificationUrl);
 

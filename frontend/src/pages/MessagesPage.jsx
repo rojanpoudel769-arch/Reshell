@@ -8,7 +8,7 @@ import { MessageSquare, ChevronRight, Send, ArrowLeft, ShoppingBag, Inbox } from
 const MessagesPage = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const socket = useSocket();
+    const { socket, setHasUnreadMessages } = useSocket() || {};
     const [conversations, setConversations] = useState([]);
     const [selected, setSelected] = useState(null);
     const [thread, setThread] = useState(null);
@@ -21,7 +21,10 @@ const MessagesPage = () => {
     useEffect(() => {
         if (!user) { navigate('/login'); return; }
         fetchConversations();
-    }, [user]);
+        if (setHasUnreadMessages) {
+            setHasUnreadMessages(false);
+        }
+    }, [user, setHasUnreadMessages]);
 
     const fetchConversations = async () => {
         setLoadingList(true);

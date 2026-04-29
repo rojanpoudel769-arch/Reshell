@@ -1,6 +1,5 @@
 const Message = require('../models/Message');
 const Item = require('../models/Item');
-const { io } = require('../server');
 
 // @desc    Send a message to a seller (creates or appends to conversation thread)
 // @route   POST /api/messages
@@ -46,11 +45,16 @@ const sendMessage = async (req, res) => {
         }
 
         // Emit real-time message
+        const io = req.app.get('io');
         const messageToEmit = { ...newMessageEntry, createdAt: new Date() };
         io.to(conversation._id.toString()).emit('new_message', {
-            conversationId: conversation._id,
+            conversationId: conversation._id.toString(),
             message: messageToEmit
         });
+
+        // Notify receiver
+        const receiverId = item.seller._id.toString();
+        io.to(receiverId).emit('message_notification', { hasNew: true });
 
         res.status(201).json({ success: true, conversationId: conversation._id });
     } catch (err) {
@@ -141,11 +145,18 @@ const replyToConversation = async (req, res) => {
         await conversation.save();
 
         // Emit real-time message
+        const io = req.app.get('io');
         const messageToEmit = { ...newMessageEntry, createdAt: new Date() };
         io.to(conversation._id.toString()).emit('new_message', {
-            conversationId: conversation._id,
+            conversationId: conversation._id.toString(),
             message: messageToEmit
         });
+
+        // Notify receiver
+        const receiverId = conversation.buyer.toString() === req.user._id.toString() 
+            ? conversation.seller.toString() 
+            : conversation.buyer.toString();
+        io.to(receiverId).emit('message_notification', { hasNew: true });
 
         res.status(201).json({ success: true });
     } catch (err) {

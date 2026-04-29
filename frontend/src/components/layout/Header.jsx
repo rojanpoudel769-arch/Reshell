@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSocket } from '../../contexts/SocketContext';
 import { Search, ShoppingBag, User, LogOut, Menu, Heart, MessageSquare, Shield } from 'lucide-react';
 
 const Header = () => {
     const { user, logout } = useAuth();
+    const { hasUnreadMessages } = useSocket() || {};
     const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -78,8 +80,15 @@ const Header = () => {
                                 <Link to="/sell" className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>Sell Item</Link>
                             )}
 
-                            <Link to="/messages" style={{ color: 'var(--clr-text-secondary)', display: 'flex', alignItems: 'center' }} title="Messages">
+                            <Link to="/messages" style={{ color: 'var(--clr-text-secondary)', display: 'flex', alignItems: 'center', position: 'relative' }} title="Messages">
                                 <MessageSquare size={24} />
+                                {hasUnreadMessages && (
+                                    <span style={{
+                                        position: 'absolute', top: '-2px', right: '-4px',
+                                        width: '10px', height: '10px',
+                                        backgroundColor: 'red', borderRadius: '50%'
+                                    }}></span>
+                                )}
                             </Link>
 
                             <Link to="/profile" style={{ color: 'var(--clr-text-secondary)', position: 'relative', display: 'flex', alignItems: 'center' }}>
