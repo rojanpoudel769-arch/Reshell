@@ -28,8 +28,10 @@ const Profile = () => {
 
         const fetchUserItems = async () => {
             try {
+                const token = JSON.parse(localStorage.getItem('userInfo'))?.token;
+                const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
                 // Fetch only this user's listings via seller query param
-                const res = await axios.get(`/api/items?seller=${user._id}`);
+                const res = await axios.get(`/api/items?seller=${user._id}`, config);
                 setMyItems(res.data.items || []);
             } catch (err) {
                 console.error('Error fetching user items:', err);

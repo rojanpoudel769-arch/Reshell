@@ -20,8 +20,11 @@ const ItemDetail = () => {
         const fetchItemData = async () => {
             setLoading(true);
             try {
+                const token = JSON.parse(localStorage.getItem('userInfo'))?.token;
+                const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+
                 const [itemRes, relatedRes] = await Promise.all([
-                    axios.get(`/api/items/${id}`),
+                    axios.get(`/api/items/${id}`, config),
                     axios.get(`/api/items/${id}/related`)
                 ]);
                 setItem(itemRes.data);

@@ -25,6 +25,20 @@ const deleteUser = async (req, res, next) => {
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
+        // Cascading delete: Remove messages associated with this user
+        const Message = require('../models/Message');
+        await Message.deleteMany({ $or: [{ buyer: user._id }, { seller: user._id }] });
+
+        // Remove the user's items from all other users' savedItems arrays
+        const userItems = await Item.find({ seller: user._id });
+        const userItemIds = userItems.map(item => item._id);
+        if (userItemIds.length > 0) {
+            await User.updateMany(
+                { savedItems: { $in: userItemIds } },
+                { $pullAll: { savedItems: userItemIds } }
+            );
+        }
+
         // Also remove all items listed by this user
         await Item.deleteMany({ seller: user._id });
         await User.deleteOne({ _id: user._id });
@@ -75,6 +89,16 @@ const removeItem = async (req, res, next) => {
             return res.status(404).json({ message: 'Item not found' });
         }
         await Item.deleteOne({ _id: item._id });
+
+        // Cascading delete: Remove messages associated with this item
+        const Message = require('../models/Message');
+        await Message.deleteMany({ item: item._id });
+
+        // Cascading update: Remove this item from all users' savedItems
+        await User.updateMany(
+            { savedItems: item._id },
+            { $pull: { savedItems: item._id } }
+        );
         res.json({ message: 'Item removed successfully' });
     } catch (error) {
         next(error);

@@ -117,9 +117,13 @@ const ItemCard = ({ item, onDelete, showActions = true }) => {
                         <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--clr-brand-primary)' }}>
                             Rs. {item.price.toLocaleString()}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--clr-text-tertiary)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                            <MapPin size={12} />
-                            {item.location}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--clr-text-tertiary)', fontSize: '0.75rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                <MapPin size={12} />
+                                {item.location}
+                            </span>
+                            <span>•</span>
+                            <span>Seller: <strong>{item.seller?.name || 'Unknown User'}</strong></span>
                         </div>
                     </div>
                 </div>

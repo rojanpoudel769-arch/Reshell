@@ -22,7 +22,7 @@ const getItems = async (req, res, next) => {
         // Filter by category
         const category = req.query.category ? { category: req.query.category } : {};
 
-        // Filter by seller — if filtering by a specific seller (profile view), skip approval filter
+        // Filter by seller
         const seller = req.query.seller ? { seller: req.query.seller } : {};
 
         // Filter by price range
@@ -30,18 +30,41 @@ const getItems = async (req, res, next) => {
         const maxPrice = req.query.maxPrice ? Number(req.query.maxPrice) : Number.MAX_SAFE_INTEGER;
         const priceFilter = { price: { $gte: minPrice, $lte: maxPrice } };
 
-        // Only show approved items on public explore — bypass if querying by specific seller
-        const approvalFilter = req.query.seller ? {} : { isApproved: true };
+        let userId = null;
+        let isAdmin = false;
+        if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+            try {
+                const token = req.headers.authorization.split(' ')[1];
+                const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
+                const user = await User.findById(decoded.id);
+                if (user) {
+                    userId = user._id.toString();
+                    isAdmin = user.role === 'admin';
+                }
+            } catch (err) { }
+        }
+
+        // Only show approved items UNLESS the user is an admin OR the user is querying their OWN items
+        let approvalFilter = { isApproved: { $ne: false } };
+        
+        if (isAdmin) {
+             approvalFilter = {}; // Admins can see everything
+        } else if (req.query.seller && userId && req.query.seller === userId) {
+             approvalFilter = {}; // Sellers can see their own pending items
+        }
 
         // Combine filters
         const filter = { ...keyword, ...category, ...seller, ...priceFilter, ...approvalFilter };
 
         const count = await Item.countDocuments(filter);
-        const items = await Item.find(filter)
+        let items = await Item.find(filter)
             .populate('seller', 'name email')
             .limit(pageSize)
             .skip(pageSize * (page - 1))
             .sort({ createdAt: -1 });
+
+        // Filter out items where seller is null (user deleted)
+        items = items.filter(item => item.seller !== null);
 
         res.json({
             items,
@@ -63,6 +86,27 @@ const getItemById = async (req, res, next) => {
         const item = await Item.findById(req.params.id).populate('seller', 'name email');
 
         if (item) {
+            // If item is not approved, only the seller or an admin can view it
+            if (!item.isApproved) {
+                let userRole = 'guest';
+                let userId = null;
+                if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+                    try {
+                        const token = req.headers.authorization.split(' ')[1];
+                        const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
+                        const user = await User.findById(decoded.id);
+                        if (user) {
+                            userRole = user.role;
+                            userId = user._id.toString();
+                        }
+                    } catch (err) { }
+                }
+
+                if (userRole !== 'admin' && (!userId || item.seller._id.toString() !== userId)) {
+                    return res.status(403).json({ message: 'This item is pending approval and cannot be viewed.' });
+                }
+            }
+
             res.json(item);
         } else {
             res.status(404).json({ message: 'Item not found' });
@@ -147,6 +191,17 @@ const deleteItem = async (req, res, next) => {
                 return;
             }
             await Item.deleteOne({ _id: item._id });
+
+            // Cascading delete: Remove messages associated with this item
+            const Message = require('../models/Message');
+            await Message.deleteMany({ item: item._id });
+
+            // Cascading update: Remove this item from all users' savedItems
+            await User.updateMany(
+                { savedItems: item._id },
+                { $pull: { savedItems: item._id } }
+            );
+
             res.json({ message: 'Item removed' });
         } else {
             res.status(404).json({ message: 'Item not found' });
@@ -165,8 +220,11 @@ const getRecommendations = async (req, res, next) => {
         const user = await User.findById(req.user._id).populate('savedItems');
         let categories = [];
 
-        if (user.savedItems && user.savedItems.length > 0) {
-            categories = user.savedItems.map(item => item.category);
+        // Filter out null items in case they were deleted
+        const activeSavedItems = (user.savedItems || []).filter(item => item !== null);
+
+        if (activeSavedItems.length > 0) {
+            categories = activeSavedItems.map(item => item.category);
         }
 
         // Weight categories by frequency
@@ -183,7 +241,8 @@ const getRecommendations = async (req, res, next) => {
             recommendations = await Item.find({
                 category: { $in: sortedCategories },
                 seller: { $ne: req.user._id },
-                _id: { $nin: user.savedItems.map(item => item._id) }
+                isApproved: { $ne: false },
+                _id: { $nin: activeSavedItems.map(item => item._id) }
             })
                 .limit(10)
                 .sort({ createdAt: -1 })
@@ -194,7 +253,8 @@ const getRecommendations = async (req, res, next) => {
         if (recommendations.length < 4) {
             const extraItems = await Item.find({
                 seller: { $ne: req.user._id },
-                _id: { $nin: [...user.savedItems.map(item => item._id), ...recommendations.map(r => r._id)] }
+                isApproved: { $ne: false },
+                _id: { $nin: [...activeSavedItems.map(item => item._id), ...recommendations.map(r => r._id)] }
             })
                 .limit(10 - recommendations.length)
                 .sort({ createdAt: -1 })
@@ -222,6 +282,7 @@ const getRelatedItems = async (req, res, next) => {
 
         const relatedItems = await Item.find({
             category: item.category,
+            isApproved: { $ne: false },
             _id: { $ne: item._id }
         })
             .limit(4)

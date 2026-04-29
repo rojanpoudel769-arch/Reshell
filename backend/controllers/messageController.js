@@ -18,6 +18,10 @@ const sendMessage = async (req, res) => {
             return res.status(404).json({ message: 'Item not found.' });
         }
 
+        if (!item.seller) {
+            return res.status(404).json({ message: 'The seller of this item no longer exists.' });
+        }
+
         // Prevent sellers from messaging themselves
         if (item.seller._id.toString() === req.user._id.toString()) {
             return res.status(400).json({ message: 'You cannot contact yourself about your own listing.' });
@@ -60,13 +64,16 @@ const sendMessage = async (req, res) => {
 // @access  Private
 const getMyConversations = async (req, res) => {
     try {
-        const conversations = await Message.find({
+        let conversations = await Message.find({
             $or: [{ buyer: req.user._id }, { seller: req.user._id }]
         })
             .populate('item', 'title images price')
             .populate('buyer', 'name')
             .populate('seller', 'name')
             .sort({ lastMessageAt: -1 });
+
+        // Filter out conversations with missing references (orphaned data from before cascading deletes)
+        conversations = conversations.filter(conv => conv.item && conv.buyer && conv.seller);
 
         res.json(conversations);
     } catch (err) {
@@ -86,8 +93,8 @@ const getConversation = async (req, res) => {
             .populate('seller', 'name _id')
             .populate('messages.from', 'name _id');
 
-        if (!conversation) {
-            return res.status(404).json({ message: 'Conversation not found.' });
+        if (!conversation || !conversation.item || !conversation.buyer || !conversation.seller) {
+            return res.status(404).json({ message: 'Conversation or related entities no longer exist.' });
         }
 
         const userId = req.user._id.toString();

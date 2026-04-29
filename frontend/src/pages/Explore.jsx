@@ -53,14 +53,7 @@ const Explore = () => {
                 const { data } = await axios.get(url);
                 setItems(data.items);
 
-                // Smart Category Detection:
-                // If we are in "All" and have results, check if they all belong to one category
-                if (currentCategory === 'All' && data.items.length > 0 && currentKeyword) {
-                    const uniqueCategories = [...new Set(data.items.map(item => item.category))];
-                    if (uniqueCategories.length === 1) {
-                        setCategory(uniqueCategories[0]);
-                    }
-                }
+
 
                 // Redirect to not-found if no items found and a keyword was used
                 if (data.items.length === 0 && currentKeyword && !loading) {
@@ -146,7 +139,16 @@ const Explore = () => {
                                             name="category"
                                             value={cat}
                                             checked={category === cat}
-                                            onChange={(e) => setCategory(e.target.value)}
+                                            onChange={(e) => {
+                                                const newCategory = e.target.value;
+                                                setCategory(newCategory);
+                                                let query = `?`;
+                                                if (keyword) query += `keyword=${keyword}&`;
+                                                if (newCategory !== 'All') query += `category=${newCategory}&`;
+                                                if (minPrice) query += `minPrice=${minPrice}&`;
+                                                if (maxPrice) query += `maxPrice=${maxPrice}&`;
+                                                navigate(`/explore${query}`);
+                                            }}
                                             style={{ accentColor: 'var(--clr-brand-primary)' }}
                                         />
                                         {cat}

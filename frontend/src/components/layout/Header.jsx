@@ -29,7 +29,7 @@ const Header = () => {
                     <div style={{ backgroundColor: 'var(--clr-brand-primary)', color: 'white', padding: '0.25rem', borderRadius: 'var(--radius-sm)' }}>
                         <ShoppingBag size={24} />
                     </div>
-                    Reshell
+                    ReSell
                 </Link>
 
                 {/* Navigation - Desktop */}
@@ -37,11 +37,11 @@ const Header = () => {
                     <Link to="/explore" style={{ fontWeight: 500, color: 'var(--clr-text-secondary)' }}>Explore</Link>
                     <Link to="/categories" style={{ fontWeight: 500, color: 'var(--clr-text-secondary)' }}>Categories</Link>
                     <Link to="/about" style={{ fontWeight: 500, color: 'var(--clr-text-secondary)' }}>About</Link>
-                    {user?.role === 'admin' && (
+                    {/* {user?.role === 'admin' && (
                         <Link to="/admin" style={{ fontWeight: 600, color: 'var(--clr-brand-primary)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                             <Shield size={16} /> Admin Panel
                         </Link>
-                    )}
+                    )} */}
                 </nav>
 
                 {/* Search & Actions */}
